@@ -5,9 +5,9 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 and 2 establish the npm workspace, shared code-quality tooling, and local PostgreSQL
-with pgvector. Application runtimes, document ingestion, and the RAG pipeline are intentionally
-introduced in later phases.
+Phases 1 through 3 establish the npm workspace, shared code-quality tooling, local PostgreSQL
+with pgvector, and the initial HTTP API. Database integration, document ingestion, and the RAG
+pipeline are intentionally introduced in later phases.
 
 ## Workspace
 
@@ -27,6 +27,21 @@ introduced in later phases.
 ```bash
 npm install
 npm run check
+```
+
+## Local API
+
+Copy the environment template, then start the API in watch mode:
+
+```powershell
+Copy-Item .env.example .env
+npm run dev:api
+```
+
+The API listens on `http://localhost:3001` by default. Its current health endpoint is:
+
+```text
+GET http://localhost:3001/health
 ```
 
 ## Local database
