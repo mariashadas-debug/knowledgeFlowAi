@@ -14,15 +14,17 @@
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src --ext .ts --max-warnings=0",
     "start": "node dist/server.js",
-    "test": "tsx --test src/health.test.ts src/database.integration.test.ts src/documents.integration.test.ts src/extraction.test.ts src/text-normalizer.test.ts src/text-chunker.test.ts",
+    "test": "tsx --test src/health.test.ts src/database.integration.test.ts src/documents.integration.test.ts src/extraction.test.ts src/text-normalizer.test.ts src/text-chunker.test.ts src/embeddings.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
+    "openai": "^6.49.0",
     "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
+    "pgvector": "^0.2.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

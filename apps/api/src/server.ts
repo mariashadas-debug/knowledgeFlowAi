@@ -8,6 +8,8 @@ import { LocalDocumentStorage } from './services/document-storage.js';
 import { DocumentProcessor } from './services/document-processor.js';
 import { DocumentsService } from './services/documents-service.js';
 import { DocumentTextExtractor } from './services/extraction/document-text-extractor.js';
+import { createEmbeddingProvider } from './services/embeddings/create-embedding-provider.js';
+import { EmbeddingService } from './services/embeddings/embedding-service.js';
 import { TextChunker } from './services/text-chunker.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -78,6 +80,11 @@ async function main(): Promise<void> {
     documentStorage,
     new DocumentTextExtractor(),
     new TextChunker(config.CHUNK_SIZE, config.CHUNK_OVERLAP),
+    new EmbeddingService(
+      createEmbeddingProvider(config),
+      config.EMBEDDING_BATCH_SIZE,
+      config.EMBEDDING_MAX_INPUT_CHARACTERS,
+    ),
   );
   const documentsService = new DocumentsService(
     documentsRepository,

@@ -17,11 +17,22 @@ const environmentSchema = z
     STORAGE_DIRECTORY: z.string().min(1).default('storage/documents'),
     CHUNK_SIZE: z.coerce.number().int().min(200).max(10_000).default(1200),
     CHUNK_OVERLAP: z.coerce.number().int().min(0).max(2_000).default(200),
+    AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+    OPENAI_API_KEY: z.string().optional(),
+    EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
+    EMBEDDING_BATCH_SIZE: z.coerce.number().int().min(1).max(128).default(32),
+    EMBEDDING_MAX_INPUT_CHARACTERS: z.coerce.number().int().min(1_000).max(100_000).default(12_000),
+    OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
+    EMBEDDING_DIMENSION: z.coerce.number().pipe(z.literal(1536)).default(1536),
   })
   .refine((environment) => environment.CHUNK_OVERLAP < environment.CHUNK_SIZE, {
     message: 'CHUNK_OVERLAP must be smaller than CHUNK_SIZE',
     path: ['CHUNK_OVERLAP'],
-  });
+  })
+  .refine(
+    (environment) => environment.AI_PROVIDER !== 'openai' || Boolean(environment.OPENAI_API_KEY),
+    { message: 'OPENAI_API_KEY is required when AI_PROVIDER=openai', path: ['OPENAI_API_KEY'] },
+  );
 
 export type EnvironmentConfig = z.infer<typeof environmentSchema>;
 

@@ -1,6 +1,7 @@
 import { AppError } from '../errors/app-error.js';
 import { type DocumentRecord, DocumentsRepository } from '../repositories/documents-repository.js';
 import type { DocumentStorage } from './document-storage.js';
+import { EmbeddingService } from './embeddings/embedding-service.js';
 import { DocumentTextExtractor } from './extraction/document-text-extractor.js';
 import { TextChunker } from './text-chunker.js';
 import { normalizeText } from './text-normalizer.js';
@@ -25,6 +26,7 @@ export class DocumentProcessor {
     private readonly storage: DocumentStorage,
     private readonly extractor: DocumentTextExtractor,
     private readonly chunker: TextChunker,
+    private readonly embeddings: EmbeddingService,
   ) {}
 
   async process(document: DocumentRecord): Promise<DocumentRecord> {
@@ -38,7 +40,22 @@ export class DocumentProcessor {
       const chunks = this.chunker.chunk(sections, document.originalName, extracted.format);
       if (chunks.length === 0) throw new Error('No extractable text was found');
 
-      return await this.repository.replaceChunksAndMarkReady(document.id, chunks);
+      const startedAt = performance.now();
+      let vectors: number[][];
+      try {
+        vectors = await this.embeddings.createEmbeddings(chunks.map((chunk) => chunk.content));
+      } catch (error) {
+        throw new Error('Embedding generation failed', { cause: error });
+      }
+      const embeddedChunks = chunks.map((chunk, index) => ({
+        ...chunk,
+        embedding: vectors[index]!,
+      }));
+      console.info(
+        `Embedded document ${document.id}: chunks=${chunks.length} provider=${this.embeddings.provider.providerName} model=${this.embeddings.provider.model} batches=${this.embeddings.getBatchCount(chunks.length)} durationMs=${(performance.now() - startedAt).toFixed(1)}`,
+      );
+
+      return await this.repository.replaceChunksAndMarkReady(document.id, embeddedChunks);
     } catch (error) {
       const technicalMessage = error instanceof Error ? error.message : 'Unknown processing error';
       console.error(`Document processing failed for ${document.id}: ${technicalMessage}`);

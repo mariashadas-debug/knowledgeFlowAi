@@ -24,4 +24,5 @@ export interface DocumentChunk {
     heading?: string;
   };
   createdAt: string;
+  hasEmbedding: boolean;
 }

@@ -13,6 +13,10 @@ export interface TextChunk {
   metadata: ChunkMetadata;
 }
 
+export interface EmbeddedTextChunk extends TextChunk {
+  embedding: number[];
+}
+
 interface Boundary {
   index: number;
   length: number;

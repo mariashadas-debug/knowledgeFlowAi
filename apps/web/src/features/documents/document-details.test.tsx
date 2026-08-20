@@ -31,6 +31,7 @@ const chunk: DocumentChunk = {
     heading: 'Overview',
   },
   createdAt: '2026-08-20T12:00:01.000Z',
+  hasEmbedding: true,
 };
 
 function renderDetails() {
@@ -53,6 +54,7 @@ describe('DocumentDetails', () => {
     expect(await screen.findByText('ready')).toBeInTheDocument();
     expect(await screen.findByText('Chunk 1 · Overview')).toBeInTheDocument();
     expect(screen.getByText('Extracted knowledge content.')).toBeInTheDocument();
+    expect(screen.getByText('Embeddings ready')).toBeInTheDocument();
   });
 
   it('renders failed status and processing error', async () => {

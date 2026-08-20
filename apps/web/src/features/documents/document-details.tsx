@@ -86,11 +86,16 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
               Extracted chunks
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Normalized text prepared for future embedding.
+              Normalized text and vector indexing status.
             </p>
           </div>
           {chunks.data ? (
-            <span className="text-xs text-slate-500">{chunks.data.length} chunks</span>
+            <div className="text-right text-xs text-slate-500">
+              <div>{chunks.data.length} chunks</div>
+              {chunks.data.length > 0 && chunks.data.every((chunk) => chunk.hasEmbedding) ? (
+                <div className="mt-1 font-medium text-emerald-700">Embeddings ready</div>
+              ) : null}
+            </div>
           ) : null}
         </div>
 

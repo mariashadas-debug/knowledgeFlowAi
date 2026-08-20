@@ -1,5 +1,7 @@
 import type { Database } from '../services/database.js';
-import type { TextChunk } from '../services/text-chunker.js';
+import pgvector from 'pgvector';
+
+import type { EmbeddedTextChunk } from '../services/text-chunker.js';
 
 export type DocumentStatus = 'processing' | 'ready' | 'failed';
 
@@ -44,6 +46,7 @@ interface DocumentChunkRow {
   content: string;
   metadata: Record<string, unknown>;
   created_at: Date;
+  has_embedding: boolean;
 }
 
 export interface DocumentChunkRecord {
@@ -52,6 +55,7 @@ export interface DocumentChunkRecord {
   content: string;
   metadata: Record<string, unknown>;
   createdAt: string;
+  hasEmbedding: boolean;
 }
 
 const DOCUMENT_COLUMNS = `
@@ -125,14 +129,23 @@ export class DocumentsRepository {
     return result.rowCount === 1;
   }
 
-  async replaceChunksAndMarkReady(id: string, chunks: TextChunk[]): Promise<DocumentRecord> {
+  async replaceChunksAndMarkReady(
+    id: string,
+    chunks: EmbeddedTextChunk[],
+  ): Promise<DocumentRecord> {
     return this.database.transaction(async (transaction) => {
       await transaction.query('DELETE FROM document_chunks WHERE document_id = $1', [id]);
       for (const chunk of chunks) {
         await transaction.query(
-          `INSERT INTO document_chunks (document_id, content, chunk_index, metadata)
-           VALUES ($1, $2, $3, $4)`,
-          [id, chunk.content, chunk.metadata.chunkIndex, chunk.metadata],
+          `INSERT INTO document_chunks (document_id, content, chunk_index, metadata, embedding)
+           VALUES ($1, $2, $3, $4, $5::vector)`,
+          [
+            id,
+            chunk.content,
+            chunk.metadata.chunkIndex,
+            chunk.metadata,
+            pgvector.toSql(chunk.embedding),
+          ],
         );
       }
 
@@ -166,7 +179,7 @@ export class DocumentsRepository {
 
   async findChunks(id: string): Promise<DocumentChunkRecord[]> {
     const result = await this.database.query<DocumentChunkRow>(
-      `SELECT id, chunk_index, content, metadata, created_at
+      `SELECT id, chunk_index, content, metadata, created_at, embedding IS NOT NULL AS has_embedding
        FROM document_chunks
        WHERE document_id = $1
        ORDER BY chunk_index`,
@@ -178,6 +191,7 @@ export class DocumentsRepository {
       content: row.content,
       metadata: row.metadata,
       createdAt: row.created_at.toISOString(),
+      hasEmbedding: row.has_embedding,
     }));
   }
 }

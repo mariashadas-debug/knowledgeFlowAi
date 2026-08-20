@@ -14,6 +14,9 @@ import { LocalDocumentStorage } from './services/document-storage.js';
 import { DocumentProcessor } from './services/document-processor.js';
 import { DocumentsService } from './services/documents-service.js';
 import { DocumentTextExtractor } from './services/extraction/document-text-extractor.js';
+import type { EmbeddingProvider } from './services/embeddings/embedding-provider.js';
+import { EmbeddingService } from './services/embeddings/embedding-service.js';
+import { MockEmbeddingProvider } from './services/embeddings/mock-embedding-provider.js';
 import { TextChunker } from './services/text-chunker.js';
 
 interface DocumentResponse {
@@ -40,6 +43,7 @@ before(async () => {
     storage,
     new DocumentTextExtractor(),
     new TextChunker(200, 40),
+    new EmbeddingService(new MockEmbeddingProvider(1536), 2, 12_000),
   );
   const service = new DocumentsService(repository, storage, processor);
   app = createApp(database, { documentsService: service, maxUploadBytes: 1024 });
@@ -92,6 +96,13 @@ describe('Document API integration', () => {
     assert.equal(chunks.body.items.length, 1);
     assert.match(chunks.body.items[0].content, /KnowledgeFlow upload test/);
     assert.equal('embedding' in chunks.body.items[0], false);
+    assert.equal(chunks.body.items[0].hasEmbedding, true);
+
+    const embedded = await database.query<{ dimensions: number }>(
+      'SELECT vector_dims(embedding) AS dimensions FROM document_chunks WHERE document_id = $1',
+      [document.id],
+    );
+    assert.equal(embedded.rows[0]?.dimensions, 1536);
 
     const record = await repository.findById(document.id);
     assert.ok(record);
@@ -169,5 +180,59 @@ describe('Document API integration', () => {
     assert.equal(response.body.data.errorMessage, 'The PDF could not be read');
     const health = await request(app).get('/health');
     assert.equal(health.status, 200);
+  });
+
+  it('marks the document failed and leaves no chunks when embedding generation fails', async () => {
+    const originalName = `phase6-test-embedding-failure-${Date.now()}.txt`;
+    let calls = 0;
+    const failingProvider: EmbeddingProvider = {
+      providerName: 'failing-test',
+      model: 'failing-test-v1',
+      dimension: 1536,
+      async createEmbedding() {
+        throw new Error('Sensitive provider response');
+      },
+      async createEmbeddings() {
+        calls += 1;
+        if (calls === 1) return [await new MockEmbeddingProvider(1536).createEmbedding('first')];
+        throw new Error('Sensitive provider response');
+      },
+    };
+    const storage = new LocalDocumentStorage(storageDirectory);
+    const failingProcessor = new DocumentProcessor(
+      repository,
+      storage,
+      new DocumentTextExtractor(),
+      new TextChunker(200, 40),
+      new EmbeddingService(failingProvider, 1, 12_000),
+    );
+    const failingApp = createApp(database, {
+      documentsService: new DocumentsService(repository, storage, failingProcessor),
+      maxUploadBytes: 1024,
+    });
+
+    const response = await request(failingApp)
+      .post('/api/documents')
+      .attach(
+        'file',
+        Buffer.from(
+          `${'First paragraph has enough useful content. '.repeat(8)}\n\n${'Second paragraph also has enough useful content. '.repeat(8)}`,
+        ),
+        {
+          filename: originalName,
+          contentType: 'text/plain',
+        },
+      );
+
+    assert.equal(response.status, 201);
+    assert.equal(response.body.data.status, 'failed');
+    assert.equal(response.body.data.errorMessage, 'Document processing failed');
+    assert.doesNotMatch(response.body.data.errorMessage, /Sensitive/);
+    assert.equal(calls, 2);
+    const chunks = await database.query<{ count: string }>(
+      'SELECT count(*) FROM document_chunks WHERE document_id = $1',
+      [response.body.data.id],
+    );
+    assert.equal(chunks.rows[0]?.count, '0');
   });
 });

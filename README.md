@@ -5,9 +5,9 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 through 7 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
-the Next.js shell, document management, and text extraction/chunking. Embeddings and the RAG
-pipeline are intentionally introduced in later phases.
+Phases 1 through 8 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
+the Next.js shell, document management, text extraction/chunking, and embedding storage.
+Semantic retrieval and RAG answers are intentionally introduced in later phases.
 
 ## Workspace
 
@@ -73,7 +73,23 @@ image-only PDFs are not supported because Phase 7 does not include OCR.
 Chunks target `CHUNK_SIZE=1200` characters with `CHUNK_OVERLAP=200` characters by default.
 Splits prefer headings, paragraphs, and sentences, falling back to whitespace or a hard boundary
 only when necessary. Configure both values in `.env`; overlap must remain smaller than chunk
-size. Embeddings remain null until a later phase.
+size.
+
+## Embeddings
+
+An embedding is a numeric representation of chunk content that is stored in PostgreSQL's
+`vector(1536)` column. Phase 8 generates and stores these vectors but does not yet expose semantic
+search or RAG answers.
+
+Local development and automated tests default to `AI_PROVIDER=mock`. The mock provider hashes
+each input into a deterministic 1536-dimensional vector, so identical text produces identical
+results without network access or usage cost. Set `AI_PROVIDER=openai` and provide a server-only
+`OPENAI_API_KEY` to use `text-embedding-3-small`. Never prefix the key with `NEXT_PUBLIC_`.
+
+Embeddings are generated in ordered batches of `EMBEDDING_BATCH_SIZE=32`. Inputs longer than
+`EMBEDDING_MAX_INPUT_CHARACTERS=12000` are rejected defensively, and OpenAI requests time out
+after `OPENAI_TIMEOUT_MS=30000` by default. A document becomes ready only after every chunk has a
+valid 1536-dimensional embedding and the complete replacement has committed transactionally.
 
 ## Local database
 
@@ -93,7 +109,7 @@ Migrations are stored in `apps/api/migrations`. The initial schema contains `doc
 `document_chunks`, `conversations`, `messages`, and `ai_request_logs`. To roll back only the most
 recent migration during local development, run `npm run db:migrate:down`.
 
-`document_chunks.embedding` uses the documented initial dimension `vector(1536)`. Vector ANN
+`document_chunks.embedding` uses the configured contract `vector(1536)`. Vector ANN
 indexes are intentionally deferred until the corpus and retrieval behavior justify choosing and
 tuning HNSW or IVFFlat; exact search is preferable for the initial small dataset.
 
