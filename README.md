@@ -1,3 +1,7 @@
+<img width="2877" height="1520" alt="image" src="https://github.com/user-attachments/assets/89c8bb19-46af-4ca7-8f80-edf25f01087d" />
+<img width="2842" height="1502" alt="image" src="https://github.com/user-attachments/assets/32050ad5-ff66-4c5a-ad8d-c5bcf6e9cbd1" />
+<img width="2831" height="1485" alt="image" src="https://github.com/user-attachments/assets/cbe698c0-5484-4687-9474-ab0b7777bc5e" />
+
 # KnowledgeFlow AI
 
 KnowledgeFlow AI is a full-stack enterprise RAG knowledge assistant built with React/Next.js,
