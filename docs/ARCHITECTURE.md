@@ -46,4 +46,18 @@ Only after all embeddings succeed does the repository transaction delete old chu
 complete new chunk/vector set using pgvector serialization, and mark the document ready. A
 failure marks the document failed and removes stale chunks, preventing mixed or partially indexed
 sets. API responses expose only `hasEmbedding`; vectors and provider credentials stay server-side.
-Semantic retrieval and RAG remain outside the current architecture phase.
+Embedding generation is provider-isolated and shared by ingestion and question retrieval.
+
+## Retrieval and answer generation
+
+Questions use the same embedding provider as ingestion. `RetrievalRepository` performs exact
+cosine-distance search in pgvector, joins document identity, applies a configurable similarity
+threshold, and returns no vectors. Exact search is retained while the corpus is small; HNSW should
+be introduced only after measured latency makes approximate recall and index maintenance worthwhile.
+
+`RagService` owns context policy: a fixed injection-aware system instruction, recent persisted
+history, highest-scoring chunks, a character budget, deterministic insufficient-knowledge behavior,
+and source mapping. It depends on `LLMProvider`, with OpenAI and deterministic mock implementations.
+`ConversationsService` coordinates user-message persistence and transactionally stores the assistant
+message plus its safe request log. Next.js remains a presentation/proxy boundary and receives
+citations and `hasEmbedding`, never vectors, storage paths, prompts, or credentials.

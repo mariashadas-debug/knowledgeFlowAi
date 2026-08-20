@@ -24,6 +24,13 @@ const environmentSchema = z
     EMBEDDING_MAX_INPUT_CHARACTERS: z.coerce.number().int().min(1_000).max(100_000).default(12_000),
     OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
     EMBEDDING_DIMENSION: z.coerce.number().pipe(z.literal(1536)).default(1536),
+    LLM_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+    LLM_MODEL: z.string().min(1).default('gpt-4.1-mini'),
+    RAG_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
+    RAG_MIN_SIMILARITY: z.coerce.number().min(-1).max(1).default(0.15),
+    RAG_MAX_CONTEXT_CHARACTERS: z.coerce.number().int().min(1_000).max(100_000).default(12_000),
+    RAG_MAX_HISTORY_MESSAGES: z.coerce.number().int().min(0).max(50).default(10),
+    LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(4_096).default(800),
   })
   .refine((environment) => environment.CHUNK_OVERLAP < environment.CHUNK_SIZE, {
     message: 'CHUNK_OVERLAP must be smaller than CHUNK_SIZE',
@@ -32,6 +39,10 @@ const environmentSchema = z
   .refine(
     (environment) => environment.AI_PROVIDER !== 'openai' || Boolean(environment.OPENAI_API_KEY),
     { message: 'OPENAI_API_KEY is required when AI_PROVIDER=openai', path: ['OPENAI_API_KEY'] },
+  )
+  .refine(
+    (environment) => environment.LLM_PROVIDER !== 'openai' || Boolean(environment.OPENAI_API_KEY),
+    { message: 'OPENAI_API_KEY is required when LLM_PROVIDER=openai', path: ['OPENAI_API_KEY'] },
   );
 
 export type EnvironmentConfig = z.infer<typeof environmentSchema>;

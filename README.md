@@ -1,133 +1,180 @@
 # KnowledgeFlow AI
 
-KnowledgeFlow AI is an internal company knowledge assistant designed to demonstrate a
-production-minded full-stack retrieval-augmented generation architecture.
+KnowledgeFlow AI is a transparent, production-minded internal knowledge assistant. Teams upload
+company documents, the API extracts and indexes their content in PostgreSQL with pgvector, and the
+assistant answers questions from retrieved evidence with inspectable citations and usage metrics.
 
-## Current status
+The project deliberately exposes the important RAG boundaries—storage, extraction, chunking,
+embeddings, retrieval, context construction, generation, citations, and observability—without a
+heavy ORM, agent framework, queue, or separate vector database.
 
-Phases 1 through 8 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
-the Next.js shell, document management, text extraction/chunking, and embedding storage.
-Semantic retrieval and RAG answers are intentionally introduced in later phases.
+## Features
 
-## Workspace
+- PDF, TXT, and Markdown upload with local storage and defensive validation
+- Text extraction, normalization, boundary-aware chunking, and idempotent reprocessing
+- OpenAI and deterministic offline mock embedding providers
+- Exact cosine similarity search in PostgreSQL using pgvector
+- Configurable top-K retrieval, relevance threshold, history limit, and context budget
+- Grounded answers with deterministic insufficient-context behavior
+- OpenAI Responses API and deterministic mock LLM providers
+- Persisted conversations, messages, citations, latency, token usage, and optional cost estimates
+- Assistant, document inspection, conversation history, health, and analytics UI
+- No embedding vectors, hidden prompts, storage paths, or API keys exposed to the browser
 
-- `apps/web` — Next.js frontend boundary (implemented in Phase 5)
-- `apps/api` — Node.js REST API boundary (implemented starting in Phase 3)
-- `packages/shared` — framework-independent shared contracts
-- `docker` — supporting container configuration
-- `docs` — architecture, RAG, and security documentation
+## Screenshots
 
-## Requirements
+Screenshots are intentionally not committed from a machine-specific local session. For a portfolio
+capture, start the application, upload `demo-data/*.md`, then capture:
 
-- Node.js 20 or newer
-- npm 10 or newer
+1. `/documents` showing ready documents
+2. `/assistant` showing a grounded answer, expanded source, and RAG details
+3. `/analytics` showing the resulting request metrics
 
-## Phase 1 checks
+## Architecture
 
-```bash
-npm install
-npm run check
+```mermaid
+flowchart LR
+  B[Browser] --> W[Next.js App Router]
+  W --> A[Node.js + Express API]
+  A --> P[(PostgreSQL + pgvector)]
+  A --> E[Embedding Provider]
+  A --> L[LLM Provider]
+  A --> F[Local document storage]
 ```
 
-## Local API
+The frontend proxies browser requests through Next.js route handlers. The Express API owns
+configuration, validation, processing, retrieval, conversations, and observability. PostgreSQL is
+the relational and vector store; uploaded bytes remain behind a replaceable storage abstraction.
+See [Architecture](docs/ARCHITECTURE.md), [RAG](docs/RAG.md), and [Security](docs/SECURITY.md).
 
-Copy the environment template, then start the API in watch mode:
-
-```powershell
-Copy-Item .env.example .env
-npm run dev:api
-```
-
-The API verifies PostgreSQL connectivity before listening on `http://localhost:3001` by default.
-Its health endpoint checks the database with a lightweight query:
+## RAG pipeline
 
 ```text
-GET http://localhost:3001/health
+Upload → Extract → Normalize → Chunk → Embed → PostgreSQL
+Question → Embed → Cosine search → Relevance filter → Bounded context → LLM → Answer + sources
 ```
 
-## Local web application
+Exact search is intentional for the initial small corpus. HNSW is deferred until corpus size and
+latency measurements justify approximate indexing. When no chunk passes `RAG_MIN_SIMILARITY`, the
+LLM is skipped and the API returns a fixed insufficient-knowledge response.
 
-Set `NEXT_PUBLIC_API_URL` in `.env` to the API origin (the local default is
-`http://localhost:3001`), then start the frontend:
+## Tech stack
 
-```powershell
-npm run dev:web
-```
+- Node.js 20.16+, TypeScript, npm workspaces
+- Express 5, Zod, `pg`, `node-pg-migrate`
+- PostgreSQL 16, pgvector
+- Next.js 16 App Router, React 19, Tailwind CSS, TanStack React Query
+- Official OpenAI Node.js SDK with provider abstractions
+- Node test runner, Supertest, Vitest, React Testing Library
+- Docker Compose for local PostgreSQL
 
-The web application runs at `http://localhost:3000`. Available routes are `/`, `/assistant`,
-`/documents`, `/conversations`, `/analytics`, and `/settings`. The dashboard proxies the API
-health check through its own `/api/health` route so the browser does not require cross-origin
-configuration.
-
-## Document uploads
-
-The Documents page accepts PDF, TXT, MD, and MARKDOWN files. The default limit is 10 MB and can
-be changed with `MAX_UPLOAD_SIZE_MB`. Uploaded bytes are stored locally under the directory
-configured by `STORAGE_DIRECTORY` (`storage/documents` by default); only metadata and a private
-storage key are kept in PostgreSQL. Stored files are ignored by Git.
-
-After storage, TXT, Markdown, and text-based PDF files are extracted, normalized, and chunked.
-Documents move from `processing` to `ready`, or to `failed` with a safe error message. Scanned or
-image-only PDFs are not supported because Phase 7 does not include OCR.
-
-Chunks target `CHUNK_SIZE=1200` characters with `CHUNK_OVERLAP=200` characters by default.
-Splits prefer headings, paragraphs, and sentences, falling back to whitespace or a hard boundary
-only when necessary. Configure both values in `.env`; overlap must remain smaller than chunk
-size.
-
-## Embeddings
-
-An embedding is a numeric representation of chunk content that is stored in PostgreSQL's
-`vector(1536)` column. Phase 8 generates and stores these vectors but does not yet expose semantic
-search or RAG answers.
-
-Local development and automated tests default to `AI_PROVIDER=mock`. The mock provider hashes
-each input into a deterministic 1536-dimensional vector, so identical text produces identical
-results without network access or usage cost. Set `AI_PROVIDER=openai` and provide a server-only
-`OPENAI_API_KEY` to use `text-embedding-3-small`. Never prefix the key with `NEXT_PUBLIC_`.
-
-Embeddings are generated in ordered batches of `EMBEDDING_BATCH_SIZE=32`. Inputs longer than
-`EMBEDDING_MAX_INPUT_CHARACTERS=12000` are rejected defensively, and OpenAI requests time out
-after `OPENAI_TIMEOUT_MS=30000` by default. A document becomes ready only after every chunk has a
-valid 1536-dimensional embedding and the complete replacement has committed transactionally.
-
-## Local database
-
-PostgreSQL 16 and pgvector run in Docker, so PostgreSQL does not need to be installed on the
-host. On Windows, copy the development environment template and start the service from
-PowerShell:
+## Local development
 
 ```powershell
+npm install
 Copy-Item .env.example .env
+docker compose up -d postgres
+npm run db:migrate
+npm run dev
+```
+
+The API runs at `http://localhost:3001`, the web app at `http://localhost:3000`, and API health is
+available at `GET http://localhost:3001/health`. `npm run dev` starts API and web together; the
+individual commands are `npm run dev:api` and `npm run dev:web`.
+
+Upload the fictional ParcelFlow demo documents from `demo-data`, then try:
+
+- “How long does a damaged parcel refund take?”
+- “Can a customer change the delivery address after dispatch?”
+- “What information must support never request?”
+- “What should an employee do after suspected account compromise?”
+- “What soup is served in the office today?” — demonstrates insufficient knowledge
+
+## Environment variables
+
+| Variable                       |                  Default | Purpose                                                    |
+| ------------------------------ | -----------------------: | ---------------------------------------------------------- |
+| `DATABASE_URL`                 |        local Compose URL | PostgreSQL connection string                               |
+| `NEXT_PUBLIC_API_URL`          |  `http://localhost:3001` | Public API origin used by Next.js proxies                  |
+| `MAX_UPLOAD_SIZE_MB`           |                     `10` | Upload size limit                                          |
+| `STORAGE_DIRECTORY`            |      `storage/documents` | Private local document bytes                               |
+| `CHUNK_SIZE` / `CHUNK_OVERLAP` |           `1200` / `200` | Character-based chunking                                   |
+| `AI_PROVIDER`                  |                   `mock` | Embedding provider: `mock` or `openai`                     |
+| `EMBEDDING_MODEL`              | `text-embedding-3-small` | OpenAI embedding model                                     |
+| `EMBEDDING_DIMENSION`          |                   `1536` | Fixed pgvector schema contract                             |
+| `EMBEDDING_BATCH_SIZE`         |                     `32` | Ordered embedding batch size                               |
+| `LLM_PROVIDER`                 |                   `mock` | Answer provider: `mock` or `openai`                        |
+| `LLM_MODEL`                    |           `gpt-4.1-mini` | OpenAI response model                                      |
+| `OPENAI_API_KEY`               |                    empty | Server-only credential required for either OpenAI provider |
+| `OPENAI_TIMEOUT_MS`            |                  `30000` | External provider timeout                                  |
+| `RAG_TOP_K`                    |                      `5` | Candidate chunks returned by retrieval                     |
+| `RAG_MIN_SIMILARITY`           |                   `0.15` | Minimum cosine similarity; tune through evaluation         |
+| `RAG_MAX_CONTEXT_CHARACTERS`   |                  `12000` | Retrieved context/history budget                           |
+| `RAG_MAX_HISTORY_MESSAGES`     |                     `10` | Recent persisted messages included                         |
+
+### Mock mode
+
+The committed defaults require no AI key and make no external requests. Mock embeddings use
+deterministic feature hashing, while the mock LLM returns a predictable excerpt-based answer. Mock
+mode is useful for development and tests but is not semantically equivalent to a real model.
+
+### OpenAI mode
+
+Set `AI_PROVIDER=openai`, `LLM_PROVIDER=openai`, and a valid server-side `OPENAI_API_KEY`. Either
+provider can independently remain `mock`. Never expose the key with a `NEXT_PUBLIC_` prefix.
+
+## Database workflow
+
+```powershell
 npm run db:up
-docker compose ps
 npm run db:migrate
 npm run db:migrate:status
+npm run db:down
 ```
 
-Migrations are stored in `apps/api/migrations`. The initial schema contains `documents`,
-`document_chunks`, `conversations`, `messages`, and `ai_request_logs`. To roll back only the most
-recent migration during local development, run `npm run db:migrate:down`.
+`db:down` preserves the named database volume. `docker compose down -v` deletes it.
 
-`document_chunks.embedding` uses the configured contract `vector(1536)`. Vector ANN
-indexes are intentionally deferred until the corpus and retrieval behavior justify choosing and
-tuning HNSW or IVFFlat; exact search is preferable for the initial small dataset.
-
-The committed credentials are development-only defaults. Replace them in `.env` outside local
-development. Applications running on the host connect through `localhost` using `DATABASE_URL`.
-An application running as another Compose service would instead use the service hostname
-`postgres`, for example:
-
-```text
-postgresql://knowledgeflow:knowledgeflow_dev@postgres:5432/knowledgeflow
-```
-
-Verify that the extension is installed:
+## Testing
 
 ```powershell
-docker compose exec postgres psql -U knowledgeflow -d knowledgeflow -c "SELECT extname FROM pg_extension WHERE extname = 'vector';"
+npm run check
+npm run build
 ```
 
-Use `npm run db:down` to stop containers while preserving data. Running
-`docker compose down -v` also deletes the named development database volume and all data stored
-in it.
+`check` runs linting, formatting verification, workspace typechecks, API unit/integration tests,
+and frontend component tests. PostgreSQL integration tests require the Compose database.
+Automated tests never call OpenAI.
+
+## AI safety
+
+Retrieved text is explicitly labeled as untrusted data, not instructions. Context is bounded,
+weak retrieval is filtered before generation, and absent evidence produces a deterministic refusal.
+These controls reduce prompt-injection and hallucination risk but do not eliminate it. See
+[Security](docs/SECURITY.md).
+
+## Token and cost management
+
+Real-provider token counts come directly from OpenAI response usage. Mock mode stores null token
+counts rather than inventing them. Cost estimation is centralized and returns null for unknown or
+mock models. Pricing changes over time and the local pricing table must be reviewed before relying
+on estimates.
+
+## Known limitations
+
+- No authentication, tenant isolation, document-level authorization, or rate limiting
+- No OCR for scanned PDFs
+- Synchronous ingestion and response generation
+- Character-based rather than tokenizer-exact context budgeting
+- Exact vector search is intended for a small corpus
+- Local filesystem storage is single-host only
+- Prompt-injection defenses and retrieval thresholds require ongoing evaluation
+
+## Future improvements
+
+- Authentication, authorization, and tenant-aware retrieval filters
+- Background processing and durable job execution
+- OCR and richer document parsers
+- Evaluation datasets, relevance feedback, and threshold tuning
+- HNSW after measured corpus/latency growth
+- Streaming answers, reranking, and hybrid lexical/vector retrieval
+- Object storage, malware scanning, retention controls, and deployment automation

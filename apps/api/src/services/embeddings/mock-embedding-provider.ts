@@ -2,19 +2,24 @@ import { createHash } from 'node:crypto';
 
 import type { EmbeddingProvider } from './embedding-provider.js';
 
-function seedFor(text: string): number {
-  return createHash('sha256').update(text, 'utf8').digest().readUInt32LE(0) || 1;
+function tokenFeatures(text: string): string[] {
+  return (
+    text
+      .toLocaleLowerCase('en-US')
+      .match(/[a-z0-9]+/g)
+      ?.flatMap((token) => (token.length > 3 ? [token, ...token.match(/.{1,3}/g)!] : [token])) ?? []
+  );
 }
 
 function deterministicVector(text: string, dimension: number): number[] {
-  let state = seedFor(text);
-  const vector = Array.from({ length: dimension }, () => {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    return (state >>> 0) / 0xffffffff - 0.5;
-  });
+  const vector = Array.from({ length: dimension }, () => 0);
+  for (const feature of tokenFeatures(text)) {
+    const digest = createHash('sha256').update(feature, 'utf8').digest();
+    const index = digest.readUInt32LE(0) % dimension;
+    vector[index] = vector[index]! + (digest[4]! % 2 === 0 ? 1 : -1);
+  }
   const magnitude = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0));
+  if (magnitude === 0) return vector;
   return vector.map((value) => value / magnitude);
 }
 
