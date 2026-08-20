@@ -5,9 +5,9 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 through 4 establish the npm workspace, shared code-quality tooling, local PostgreSQL
-with pgvector, the HTTP API, and the initial application schema. Document ingestion and the RAG
-pipeline are intentionally introduced in later phases.
+Phases 1 through 5 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
+the initial application schema, and the Next.js application shell. Document workflows and the
+RAG pipeline are intentionally introduced in later phases.
 
 ## Workspace
 
@@ -44,6 +44,20 @@ Its health endpoint checks the database with a lightweight query:
 ```text
 GET http://localhost:3001/health
 ```
+
+## Local web application
+
+Set `NEXT_PUBLIC_API_URL` in `.env` to the API origin (the local default is
+`http://localhost:3001`), then start the frontend:
+
+```powershell
+npm run dev:web
+```
+
+The web application runs at `http://localhost:3000`. Available routes are `/`, `/assistant`,
+`/documents`, `/conversations`, `/analytics`, and `/settings`. The dashboard proxies the API
+health check through its own `/api/health` route so the browser does not require cross-origin
+configuration.
 
 ## Local database
 

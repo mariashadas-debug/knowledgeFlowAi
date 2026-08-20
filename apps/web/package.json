@@ -3,7 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "next build",
+    "dev": "next dev --port 3000",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings=0",
+    "start": "next start --port 3000",
+    "test": "vitest run",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "next": "^16.3.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^4.1.11"
   }
 }

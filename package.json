@@ -20,6 +20,7 @@
     "db:up": "docker compose up -d postgres",
     "dev": "npm run dev --workspaces --if-present",
     "dev:api": "npm run dev --workspace @knowledgeflow/api",
+    "dev:web": "npm run dev --workspace @knowledgeflow/web",
     "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

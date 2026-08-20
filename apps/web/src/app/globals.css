@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-950: #17202e;
+  --color-ink-900: #202b3b;
+  --color-ink-800: #2d394a;
+  --color-brand-600: #3563e9;
+  --color-brand-50: #eef3ff;
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #f4f6f8;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: #17202e;
+  background: #f4f6f8;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  color: #17202e;
+  background: #dbe6ff;
+}
