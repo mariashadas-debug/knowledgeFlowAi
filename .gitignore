@@ -25,3 +25,5 @@ Thumbs.db
 # Uploaded files and local data
 uploads/
 data/
+storage/documents/*
+!storage/documents/.gitkeep

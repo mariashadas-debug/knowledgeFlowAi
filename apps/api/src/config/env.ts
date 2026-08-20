@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 dotenv.config({
@@ -11,6 +12,8 @@ const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  MAX_UPLOAD_SIZE_MB: z.coerce.number().positive().max(100).default(10),
+  STORAGE_DIRECTORY: z.string().min(1).default('storage/documents'),
 });
 
 export type EnvironmentConfig = z.infer<typeof environmentSchema>;
@@ -27,4 +30,11 @@ export function loadEnvironment(environment: NodeJS.ProcessEnv = process.env): E
   }
 
   return result.data;
+}
+
+export function resolveStorageDirectory(storageDirectory: string): string {
+  const apiDirectory = fileURLToPath(new URL('../..', import.meta.url));
+  const repositoryDirectory = path.resolve(apiDirectory, '../..');
+
+  return path.resolve(repositoryDirectory, storageDirectory);
 }

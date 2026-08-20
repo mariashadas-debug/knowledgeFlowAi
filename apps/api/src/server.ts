@@ -1,8 +1,11 @@
 import type { Server } from 'node:http';
 
 import { createApp } from './app.js';
-import { loadEnvironment } from './config/env.js';
+import { loadEnvironment, resolveStorageDirectory } from './config/env.js';
+import { DocumentsRepository } from './repositories/documents-repository.js';
 import { createDatabase, type Database } from './services/database.js';
+import { LocalDocumentStorage } from './services/document-storage.js';
+import { DocumentsService } from './services/documents-service.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -63,7 +66,15 @@ async function main(): Promise<void> {
     throw new Error('Unable to connect to PostgreSQL during startup', { cause: error });
   }
 
-  const app = createApp(database);
+  const documentsRepository = new DocumentsRepository(database);
+  const documentStorage = new LocalDocumentStorage(
+    resolveStorageDirectory(config.STORAGE_DIRECTORY),
+  );
+  const documentsService = new DocumentsService(documentsRepository, documentStorage);
+  const app = createApp(database, {
+    documentsService,
+    maxUploadBytes: Math.floor(config.MAX_UPLOAD_SIZE_MB * 1024 * 1024),
+  });
   const server = app.listen(config.API_PORT, () => {
     console.info(`knowledgeflow-api listening on port ${config.API_PORT}`);
   });

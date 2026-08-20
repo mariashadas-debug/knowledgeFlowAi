@@ -5,9 +5,9 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 through 5 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
-the initial application schema, and the Next.js application shell. Document workflows and the
-RAG pipeline are intentionally introduced in later phases.
+Phases 1 through 6 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
+the initial application schema, the Next.js shell, and document upload/management. Extraction,
+indexing, and the RAG pipeline are intentionally introduced in later phases.
 
 ## Workspace
 
@@ -58,6 +58,16 @@ The web application runs at `http://localhost:3000`. Available routes are `/`, `
 `/documents`, `/conversations`, `/analytics`, and `/settings`. The dashboard proxies the API
 health check through its own `/api/health` route so the browser does not require cross-origin
 configuration.
+
+## Document uploads
+
+The Documents page accepts PDF, TXT, MD, and MARKDOWN files. The default limit is 10 MB and can
+be changed with `MAX_UPLOAD_SIZE_MB`. Uploaded bytes are stored locally under the directory
+configured by `STORAGE_DIRECTORY` (`storage/documents` by default); only metadata and a private
+storage key are kept in PostgreSQL. Stored files are ignored by Git.
+
+New documents remain in `processing` status after upload. In Phase 6 this means the file is
+safely stored and awaiting extraction; extraction, chunking, and indexing begin in Phase 7.
 
 ## Local database
 
