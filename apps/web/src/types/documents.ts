@@ -11,3 +11,17 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface DocumentChunk {
+  id: string;
+  chunkIndex: number;
+  content: string;
+  metadata: {
+    documentName: string;
+    chunkIndex: number;
+    sourceFormat: 'pdf' | 'txt' | 'markdown';
+    pageNumber?: number;
+    heading?: string;
+  };
+  createdAt: string;
+}

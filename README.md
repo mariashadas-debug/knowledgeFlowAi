@@ -5,9 +5,9 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 through 6 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
-the initial application schema, the Next.js shell, and document upload/management. Extraction,
-indexing, and the RAG pipeline are intentionally introduced in later phases.
+Phases 1 through 7 establish the npm workspace, local PostgreSQL with pgvector, the HTTP API,
+the Next.js shell, document management, and text extraction/chunking. Embeddings and the RAG
+pipeline are intentionally introduced in later phases.
 
 ## Workspace
 
@@ -66,8 +66,14 @@ be changed with `MAX_UPLOAD_SIZE_MB`. Uploaded bytes are stored locally under th
 configured by `STORAGE_DIRECTORY` (`storage/documents` by default); only metadata and a private
 storage key are kept in PostgreSQL. Stored files are ignored by Git.
 
-New documents remain in `processing` status after upload. In Phase 6 this means the file is
-safely stored and awaiting extraction; extraction, chunking, and indexing begin in Phase 7.
+After storage, TXT, Markdown, and text-based PDF files are extracted, normalized, and chunked.
+Documents move from `processing` to `ready`, or to `failed` with a safe error message. Scanned or
+image-only PDFs are not supported because Phase 7 does not include OCR.
+
+Chunks target `CHUNK_SIZE=1200` characters with `CHUNK_OVERLAP=200` characters by default.
+Splits prefer headings, paragraphs, and sentences, falling back to whitespace or a hard boundary
+only when necessary. Configure both values in `.env`; overlap must remain smaller than chunk
+size. Embeddings remain null until a later phase.
 
 ## Local database
 

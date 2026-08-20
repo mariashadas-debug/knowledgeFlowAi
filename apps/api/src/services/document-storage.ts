@@ -1,9 +1,10 @@
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export interface DocumentStorage {
   save(data: Buffer, extension: string): Promise<string>;
+  read(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
 }
 
@@ -18,10 +19,7 @@ export class LocalDocumentStorage implements DocumentStorage {
   }
 
   async delete(key: string): Promise<void> {
-    const safeKey = path.basename(key);
-    if (safeKey !== key) {
-      throw new Error('Invalid storage key');
-    }
+    const safeKey = this.safeKey(key);
 
     try {
       await unlink(path.join(this.directory, safeKey));
@@ -30,5 +28,17 @@ export class LocalDocumentStorage implements DocumentStorage {
         throw error;
       }
     }
+  }
+
+  async read(key: string): Promise<Buffer> {
+    return readFile(path.join(this.directory, this.safeKey(key)));
+  }
+
+  private safeKey(key: string): string {
+    const safeKey = path.basename(key);
+    if (safeKey !== key) {
+      throw new Error('Invalid storage key');
+    }
+    return safeKey;
   }
 }

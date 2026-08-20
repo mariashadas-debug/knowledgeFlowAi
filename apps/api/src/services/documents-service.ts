@@ -4,6 +4,7 @@ import path from 'node:path';
 import { AppError } from '../errors/app-error.js';
 import { type DocumentRecord, DocumentsRepository } from '../repositories/documents-repository.js';
 import type { DocumentStorage } from './document-storage.js';
+import type { DocumentProcessor } from './document-processor.js';
 
 const SUPPORTED_MIME_TYPES: Record<string, readonly string[]> = {
   '.pdf': ['application/pdf'],
@@ -51,6 +52,7 @@ export class DocumentsService {
   constructor(
     private readonly repository: DocumentsRepository,
     private readonly storage: DocumentStorage,
+    private readonly processor?: DocumentProcessor,
   ) {}
 
   async upload(file: UploadedDocument | undefined): Promise<PublicDocument> {
@@ -99,7 +101,8 @@ export class DocumentsService {
         storageKey,
         checksumSha256: createHash('sha256').update(file.buffer).digest('hex'),
       });
-      return toPublicDocument(document);
+      const processed = this.processor ? await this.processor.process(document) : document;
+      return toPublicDocument(processed);
     } catch (error) {
       if (storageKey) {
         await this.storage.delete(storageKey);
@@ -118,6 +121,11 @@ export class DocumentsService {
       throw new AppError(404, 'DOCUMENT_NOT_FOUND', 'Document not found');
     }
     return toPublicDocument(document);
+  }
+
+  async getChunks(id: string) {
+    await this.getById(id);
+    return this.repository.findChunks(id);
   }
 
   async delete(id: string): Promise<void> {

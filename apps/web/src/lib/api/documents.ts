@@ -1,4 +1,4 @@
-import type { Document } from '../../types/documents';
+import type { Document, DocumentChunk } from '../../types/documents';
 
 interface DataResponse<T> {
   data: T;
@@ -21,6 +21,19 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 export async function getDocuments(): Promise<Document[]> {
   return parseResponse<Document[]>(await fetch('/api/documents'));
+}
+
+export async function getDocument(id: string): Promise<Document> {
+  return parseResponse<Document>(await fetch(`/api/documents/${encodeURIComponent(id)}`));
+}
+
+export async function getDocumentChunks(id: string): Promise<DocumentChunk[]> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/chunks`);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as ErrorResponse;
+    throw new Error(body.error?.message ?? 'Unable to load document chunks');
+  }
+  return ((await response.json()) as { items: DocumentChunk[] }).items;
 }
 
 export async function uploadDocument(file: File): Promise<Document> {

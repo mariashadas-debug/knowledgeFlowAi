@@ -8,13 +8,20 @@ dotenv.config({
 
 import { z } from 'zod';
 
-const environmentSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  MAX_UPLOAD_SIZE_MB: z.coerce.number().positive().max(100).default(10),
-  STORAGE_DIRECTORY: z.string().min(1).default('storage/documents'),
-});
+const environmentSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    MAX_UPLOAD_SIZE_MB: z.coerce.number().positive().max(100).default(10),
+    STORAGE_DIRECTORY: z.string().min(1).default('storage/documents'),
+    CHUNK_SIZE: z.coerce.number().int().min(200).max(10_000).default(1200),
+    CHUNK_OVERLAP: z.coerce.number().int().min(0).max(2_000).default(200),
+  })
+  .refine((environment) => environment.CHUNK_OVERLAP < environment.CHUNK_SIZE, {
+    message: 'CHUNK_OVERLAP must be smaller than CHUNK_SIZE',
+    path: ['CHUNK_OVERLAP'],
+  });
 
 export type EnvironmentConfig = z.infer<typeof environmentSchema>;
 

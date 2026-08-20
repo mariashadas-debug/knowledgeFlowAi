@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState, type FormEvent } from 'react';
 
 import { EmptyState } from '../../components/empty-state';
@@ -163,7 +164,12 @@ export function DocumentsWorkspace() {
                 {documents.data.map((document) => (
                   <tr key={document.id} className="text-sm text-slate-600">
                     <td className="max-w-xs px-5 py-4">
-                      <p className="truncate font-medium text-slate-900">{document.originalName}</p>
+                      <Link
+                        href={`/documents/${document.id}`}
+                        className="block truncate font-medium text-slate-900 hover:text-brand-600 hover:underline"
+                      >
+                        {document.originalName}
+                      </Link>
                       {document.errorMessage ? (
                         <p className="mt-1 truncate text-xs text-rose-700">
                           {document.errorMessage}
@@ -203,14 +209,22 @@ export function DocumentsWorkspace() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmingId(document.id)}
-                          aria-label={`Delete ${document.originalName}`}
-                          className="text-sm font-medium text-rose-700 hover:text-rose-900 hover:underline"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/documents/${document.id}`}
+                            className="text-sm font-medium text-brand-600 hover:underline"
+                          >
+                            Inspect
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingId(document.id)}
+                            aria-label={`Delete ${document.originalName}`}
+                            className="text-sm font-medium text-rose-700 hover:text-rose-900 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

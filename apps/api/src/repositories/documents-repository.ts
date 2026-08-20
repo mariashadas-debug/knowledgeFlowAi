@@ -1,4 +1,5 @@
 import type { Database } from '../services/database.js';
+import type { TextChunk } from '../services/text-chunker.js';
 
 export type DocumentStatus = 'processing' | 'ready' | 'failed';
 
@@ -35,6 +36,22 @@ export interface CreateDocumentInput {
   size: number;
   storageKey: string;
   checksumSha256: string;
+}
+
+interface DocumentChunkRow {
+  id: string;
+  chunk_index: number;
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+}
+
+export interface DocumentChunkRecord {
+  id: string;
+  chunkIndex: number;
+  content: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
 }
 
 const DOCUMENT_COLUMNS = `
@@ -106,5 +123,61 @@ export class DocumentsRepository {
   async delete(id: string): Promise<boolean> {
     const result = await this.database.query('DELETE FROM documents WHERE id = $1', [id]);
     return result.rowCount === 1;
+  }
+
+  async replaceChunksAndMarkReady(id: string, chunks: TextChunk[]): Promise<DocumentRecord> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.query('DELETE FROM document_chunks WHERE document_id = $1', [id]);
+      for (const chunk of chunks) {
+        await transaction.query(
+          `INSERT INTO document_chunks (document_id, content, chunk_index, metadata)
+           VALUES ($1, $2, $3, $4)`,
+          [id, chunk.content, chunk.metadata.chunkIndex, chunk.metadata],
+        );
+      }
+
+      const result = await transaction.query<DocumentRow>(
+        `UPDATE documents
+         SET status = 'ready', error_message = NULL, updated_at = now()
+         WHERE id = $1
+         RETURNING ${DOCUMENT_COLUMNS}`,
+        [id],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error('Document no longer exists');
+      return mapDocument(row);
+    });
+  }
+
+  async markFailed(id: string, errorMessage: string): Promise<DocumentRecord | null> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.query('DELETE FROM document_chunks WHERE document_id = $1', [id]);
+      const result = await transaction.query<DocumentRow>(
+        `UPDATE documents
+         SET status = 'failed', error_message = $2, updated_at = now()
+         WHERE id = $1
+         RETURNING ${DOCUMENT_COLUMNS}`,
+        [id, errorMessage],
+      );
+      const row = result.rows[0];
+      return row ? mapDocument(row) : null;
+    });
+  }
+
+  async findChunks(id: string): Promise<DocumentChunkRecord[]> {
+    const result = await this.database.query<DocumentChunkRow>(
+      `SELECT id, chunk_index, content, metadata, created_at
+       FROM document_chunks
+       WHERE document_id = $1
+       ORDER BY chunk_index`,
+      [id],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      chunkIndex: row.chunk_index,
+      content: row.content,
+      metadata: row.metadata,
+      createdAt: row.created_at.toISOString(),
+    }));
   }
 }

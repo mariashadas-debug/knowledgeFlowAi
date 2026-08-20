@@ -5,7 +5,10 @@ import { loadEnvironment, resolveStorageDirectory } from './config/env.js';
 import { DocumentsRepository } from './repositories/documents-repository.js';
 import { createDatabase, type Database } from './services/database.js';
 import { LocalDocumentStorage } from './services/document-storage.js';
+import { DocumentProcessor } from './services/document-processor.js';
 import { DocumentsService } from './services/documents-service.js';
+import { DocumentTextExtractor } from './services/extraction/document-text-extractor.js';
+import { TextChunker } from './services/text-chunker.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -70,7 +73,17 @@ async function main(): Promise<void> {
   const documentStorage = new LocalDocumentStorage(
     resolveStorageDirectory(config.STORAGE_DIRECTORY),
   );
-  const documentsService = new DocumentsService(documentsRepository, documentStorage);
+  const documentProcessor = new DocumentProcessor(
+    documentsRepository,
+    documentStorage,
+    new DocumentTextExtractor(),
+    new TextChunker(config.CHUNK_SIZE, config.CHUNK_OVERLAP),
+  );
+  const documentsService = new DocumentsService(
+    documentsRepository,
+    documentStorage,
+    documentProcessor,
+  );
   const app = createApp(database, {
     documentsService,
     maxUploadBytes: Math.floor(config.MAX_UPLOAD_SIZE_MB * 1024 * 1024),

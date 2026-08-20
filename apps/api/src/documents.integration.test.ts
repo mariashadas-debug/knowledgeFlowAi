@@ -11,7 +11,10 @@ import { loadEnvironment } from './config/env.js';
 import { DocumentsRepository } from './repositories/documents-repository.js';
 import { createDatabase, type Database } from './services/database.js';
 import { LocalDocumentStorage } from './services/document-storage.js';
+import { DocumentProcessor } from './services/document-processor.js';
 import { DocumentsService } from './services/documents-service.js';
+import { DocumentTextExtractor } from './services/extraction/document-text-extractor.js';
+import { TextChunker } from './services/text-chunker.js';
 
 interface DocumentResponse {
   id: string;
@@ -22,16 +25,23 @@ interface DocumentResponse {
 let database: Database;
 let storageDirectory: string;
 let app: ReturnType<typeof createApp>;
+let processor: DocumentProcessor;
+let repository: DocumentsRepository;
 
 before(async () => {
   const config = loadEnvironment();
   database = createDatabase(config.DATABASE_URL);
   await database.verifyConnection();
   storageDirectory = await mkdtemp(path.join(os.tmpdir(), 'knowledgeflow-documents-'));
-  const service = new DocumentsService(
-    new DocumentsRepository(database),
-    new LocalDocumentStorage(storageDirectory),
+  repository = new DocumentsRepository(database);
+  const storage = new LocalDocumentStorage(storageDirectory);
+  processor = new DocumentProcessor(
+    repository,
+    storage,
+    new DocumentTextExtractor(),
+    new TextChunker(200, 40),
   );
+  const service = new DocumentsService(repository, storage, processor);
   app = createApp(database, { documentsService: service, maxUploadBytes: 1024 });
 });
 
@@ -54,7 +64,7 @@ describe('Document API integration', () => {
     assert.equal(upload.status, 201);
     const document = upload.body.data as DocumentResponse;
     assert.equal(document.originalName, originalName);
-    assert.equal(document.status, 'processing');
+    assert.equal(document.status, 'ready');
     assert.equal('storageKey' in document, false);
 
     const stored = await database.query<{ storage_key: string }>(
@@ -76,6 +86,22 @@ describe('Document API integration', () => {
     const detail = await request(app).get(`/api/documents/${document.id}`);
     assert.equal(detail.status, 200);
     assert.equal((detail.body.data as DocumentResponse).id, document.id);
+
+    const chunks = await request(app).get(`/api/documents/${document.id}/chunks`);
+    assert.equal(chunks.status, 200);
+    assert.equal(chunks.body.items.length, 1);
+    assert.match(chunks.body.items[0].content, /KnowledgeFlow upload test/);
+    assert.equal('embedding' in chunks.body.items[0], false);
+
+    const record = await repository.findById(document.id);
+    assert.ok(record);
+    await processor.process(record);
+    await processor.process((await repository.findById(document.id))!);
+    const reprocessed = await database.query<{ count: string }>(
+      'SELECT count(*) FROM document_chunks WHERE document_id = $1',
+      [document.id],
+    );
+    assert.equal(reprocessed.rows[0]?.count, '1');
 
     const deletion = await request(app).delete(`/api/documents/${document.id}`);
     assert.equal(deletion.status, 204);
@@ -108,5 +134,40 @@ describe('Document API integration', () => {
   it('returns 404 for a missing document', async () => {
     const response = await request(app).get('/api/documents/00000000-0000-4000-8000-000000000000');
     assert.equal(response.status, 404);
+  });
+
+  it('marks documents failed when extraction produces no text', async () => {
+    const originalName = `phase6-test-empty-${Date.now()}.txt`;
+    const response = await request(app)
+      .post('/api/documents')
+      .attach('file', Buffer.from('   \n\n  '), {
+        filename: originalName,
+        contentType: 'text/plain',
+      });
+
+    assert.equal(response.status, 201);
+    assert.equal(response.body.data.status, 'failed');
+    assert.equal(response.body.data.errorMessage, 'No extractable text was found');
+    const chunks = await database.query<{ count: string }>(
+      'SELECT count(*) FROM document_chunks WHERE document_id = $1',
+      [response.body.data.id],
+    );
+    assert.equal(chunks.rows[0]?.count, '0');
+  });
+
+  it('marks malformed PDFs failed without crashing the API', async () => {
+    const malformedPdf = await readFile(new URL('./test/fixtures/malformed.pdf', import.meta.url));
+    const response = await request(app)
+      .post('/api/documents')
+      .attach('file', malformedPdf, {
+        filename: `phase6-test-malformed-${Date.now()}.pdf`,
+        contentType: 'application/pdf',
+      });
+
+    assert.equal(response.status, 201);
+    assert.equal(response.body.data.status, 'failed');
+    assert.equal(response.body.data.errorMessage, 'The PDF could not be read');
+    const health = await request(app).get('/health');
+    assert.equal(health.status, 200);
   });
 });

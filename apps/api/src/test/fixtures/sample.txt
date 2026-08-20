@@ -1,0 +1,3 @@
+KnowledgeFlow plain text fixture.
+
+This second paragraph verifies text extraction and natural boundaries.

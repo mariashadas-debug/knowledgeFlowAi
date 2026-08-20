@@ -39,6 +39,11 @@ export function createDocumentsRouter(
     response.status(200).json({ data: document });
   });
 
+  router.get('/api/documents/:id/chunks', async (request, response) => {
+    const items = await documentsService.getChunks(parseDocumentId(request.params.id ?? ''));
+    response.status(200).json({ items });
+  });
+
   router.delete('/api/documents/:id', async (request, response) => {
     await documentsService.delete(parseDocumentId(request.params.id ?? ''));
     response.status(204).send();
