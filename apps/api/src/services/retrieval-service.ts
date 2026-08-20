@@ -12,6 +12,17 @@ export class RetrievalService {
   async retrieve(question: string): Promise<RetrievedChunk[]> {
     const [embedding] = await this.embeddings.createEmbeddings([question]);
     if (!embedding) throw new Error('Question embedding was not generated');
-    return this.repository.search(embedding, this.topK, this.minimumSimilarity);
+    const providerGuard = this.embeddings.provider.acceptsRetrievalCandidate;
+    const candidates = await this.repository.search(
+      embedding,
+      providerGuard ? this.topK * 3 : this.topK,
+      this.minimumSimilarity,
+    );
+    if (!providerGuard) return candidates;
+    return candidates
+      .filter((candidate) =>
+        providerGuard.call(this.embeddings.provider, question, candidate.content),
+      )
+      .slice(0, this.topK);
   }
 }

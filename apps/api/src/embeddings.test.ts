@@ -20,6 +20,24 @@ describe('MockEmbeddingProvider', () => {
     assert.deepEqual(first, repeated);
     assert.notDeepEqual(first, different);
   });
+
+  it('accepts shared knowledge terms and rejects out-of-domain candidates', () => {
+    const provider = new MockEmbeddingProvider(1536);
+    assert.equal(
+      provider.acceptsRetrievalCandidate(
+        'What does the company refund policy say?',
+        'Approved refunds reach the original payment method within five business days.',
+      ),
+      true,
+    );
+    assert.equal(
+      provider.acceptsRetrievalCandidate(
+        'What is the capital of Japan?',
+        'Customer support is available Monday through Friday.',
+      ),
+      false,
+    );
+  });
 });
 
 describe('OpenAIEmbeddingProvider', () => {

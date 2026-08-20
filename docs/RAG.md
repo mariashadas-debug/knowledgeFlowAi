@@ -40,6 +40,12 @@ If no chunk passes the threshold, the LLM is not called and KnowledgeFlow return
 insufficient-knowledge response. Mock providers are deterministic testing tools; they do not have
 the semantic or generative quality of production models.
 
+The mock embedding provider hashes normalized whole terms and adjacent term pairs after removing
+question boilerplate. It also applies a mock-only shared-feature acceptance check after cosine
+search, preventing hash collisions from becoming false citations. Real OpenAI embeddings do not
+use this lexical guard. Changing an embedding provider or embedding algorithm requires existing
+documents to be reprocessed so stored and query vectors remain compatible.
+
 ## Indexing decision
 
 KnowledgeFlow currently uses exact search. HNSW is intentionally deferred because the expected

@@ -5,4 +5,5 @@ export interface EmbeddingProvider {
 
   createEmbedding(text: string): Promise<number[]>;
   createEmbeddings(texts: string[]): Promise<number[][]>;
+  acceptsRetrievalCandidate?(query: string, candidate: string): boolean;
 }

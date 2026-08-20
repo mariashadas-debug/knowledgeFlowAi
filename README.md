@@ -115,8 +115,10 @@ Upload the fictional ParcelFlow demo documents from `demo-data`, then try:
 ### Mock mode
 
 The committed defaults require no AI key and make no external requests. Mock embeddings use
-deterministic feature hashing, while the mock LLM returns a predictable excerpt-based answer. Mock
-mode is useful for development and tests but is not semantically equivalent to a real model.
+deterministic normalized-term feature hashing plus a mock-only collision guard, while the mock LLM
+returns a predictable excerpt-based answer. Mock mode is useful for development and tests but is
+not semantically equivalent to a real model. Reprocess documents after changing embedding models
+or provider implementations; stored and query vectors must use the same representation.
 
 ### OpenAI mode
 

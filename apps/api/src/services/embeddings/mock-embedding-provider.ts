@@ -2,13 +2,56 @@ import { createHash } from 'node:crypto';
 
 import type { EmbeddingProvider } from './embedding-provider.js';
 
+const STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'can',
+  'company',
+  'do',
+  'does',
+  'for',
+  'from',
+  'how',
+  'i',
+  'in',
+  'is',
+  'it',
+  'of',
+  'on',
+  'or',
+  'say',
+  'should',
+  'the',
+  'this',
+  'to',
+  'what',
+  'when',
+  'with',
+]);
+
+function normalizeToken(token: string): string {
+  if (token.length > 5 && token.endsWith('ies')) return `${token.slice(0, -3)}y`;
+  if (token.length > 5 && token.endsWith('ing')) return token.slice(0, -3);
+  if (token.length > 4 && token.endsWith('ed')) return token.slice(0, -2);
+  if (token.length > 4 && token.endsWith('s')) return token.slice(0, -1);
+  return token;
+}
+
 function tokenFeatures(text: string): string[] {
-  return (
+  const tokens =
     text
       .toLocaleLowerCase('en-US')
       .match(/[a-z0-9]+/g)
-      ?.flatMap((token) => (token.length > 3 ? [token, ...token.match(/.{1,3}/g)!] : [token])) ?? []
-  );
+      ?.map(normalizeToken)
+      .filter((token) => token.length > 1 && !STOP_WORDS.has(token)) ?? [];
+  const bigrams = tokens.slice(1).map((token, index) => `${tokens[index]}_${token}`);
+  return [...tokens, ...bigrams];
 }
 
 function deterministicVector(text: string, dimension: number): number[] {
@@ -25,7 +68,7 @@ function deterministicVector(text: string, dimension: number): number[] {
 
 export class MockEmbeddingProvider implements EmbeddingProvider {
   readonly providerName = 'mock';
-  readonly model = 'deterministic-mock-v1';
+  readonly model = 'deterministic-mock-v2';
 
   constructor(readonly dimension: number) {}
 
@@ -35,5 +78,10 @@ export class MockEmbeddingProvider implements EmbeddingProvider {
 
   async createEmbeddings(texts: string[]): Promise<number[][]> {
     return Promise.all(texts.map((text) => this.createEmbedding(text)));
+  }
+
+  acceptsRetrievalCandidate(query: string, candidate: string): boolean {
+    const queryFeatures = new Set(tokenFeatures(query));
+    return tokenFeatures(candidate).some((feature) => queryFeatures.has(feature));
   }
 }
