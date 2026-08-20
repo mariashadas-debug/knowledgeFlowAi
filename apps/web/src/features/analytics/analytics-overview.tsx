@@ -12,7 +12,7 @@ export function AnalyticsOverview() {
       <PageHeader
         eyebrow="Operations"
         title="AI analytics"
-        description="Observed RAG request volume, token usage, cost estimates, and latency."
+        description="Real request volume, provider-reported token usage, estimated cost, and end-to-end latency."
       />
       {usage.isPending ? (
         <p className="text-sm text-slate-500">Loading usage metrics…</p>
@@ -53,13 +53,19 @@ export function AnalyticsOverview() {
           <StatCard
             label="Estimated Cost"
             value={
-              usage.data.estimatedCost === null ? '—' : `$${usage.data.estimatedCost.toFixed(4)}`
+              usage.data.estimatedCost === null
+                ? 'Not available'
+                : `$${usage.data.estimatedCost.toFixed(4)}`
             }
-            note="Null for mock or unknown pricing"
+            note="Available for configured priced models"
           />
           <StatCard
             label="Average Latency"
-            value={usage.data.averageLatencyMs === null ? '—' : `${usage.data.averageLatencyMs} ms`}
+            value={
+              usage.data.averageLatencyMs === null
+                ? 'Not available'
+                : `${usage.data.averageLatencyMs} ms`
+            }
             note="Retrieval and generation"
           />
         </div>

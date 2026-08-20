@@ -18,10 +18,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="en">
       <body>
         <Providers>
-          <div className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
+          <div className="min-h-screen lg:grid lg:grid-cols-[264px_minmax(0,1fr)]">
             <AppSidebar />
-            <main className="min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-10 xl:px-14">
-              <div className="mx-auto w-full max-w-7xl">{children}</div>
+            <main className="min-w-0 px-4 py-7 sm:px-7 lg:px-10 lg:py-9 xl:px-14">
+              <div className="mx-auto w-full max-w-[1440px]">{children}</div>
             </main>
           </div>
         </Providers>

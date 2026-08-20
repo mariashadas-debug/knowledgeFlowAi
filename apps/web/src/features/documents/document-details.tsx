@@ -49,7 +49,7 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
 
   return (
     <>
-      <header className="mb-8 border-b border-slate-200 pb-7">
+      <header className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-[0_4px_16px_rgba(15,23,42,0.04)]">
         <Link href="/documents" className="text-sm font-medium text-brand-600 hover:underline">
           ← Documents
         </Link>
@@ -63,12 +63,25 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
             {item.status}
           </span>
         </div>
-        <p className="mt-2 text-sm text-slate-500">
-          {extension} · {formatSize(item.size)} · Uploaded{' '}
-          {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-            new Date(item.createdAt),
-          )}
-        </p>
+        <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">File type</p>
+            <p className="mt-1 font-medium text-slate-800">{extension}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">File size</p>
+            <p className="mt-1 font-medium text-slate-800">{formatSize(item.size)}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Uploaded</p>
+            <p className="mt-1 font-medium text-slate-800">
+              {new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }).format(new Date(item.createdAt))}
+            </p>
+          </div>
+        </div>
         {item.status === 'failed' && item.errorMessage ? (
           <p
             role="alert"
@@ -119,11 +132,19 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
         ) : (
           <div className="space-y-3">
             {chunks.data.map((chunk) => (
-              <details key={chunk.id} className="group rounded-xl border border-slate-200 bg-white">
+              <details
+                key={chunk.id}
+                className="group rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] open:shadow-[0_6px_18px_rgba(15,23,42,0.05)]"
+              >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-medium text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-                  <span>
-                    Chunk {chunk.chunkIndex + 1}
-                    {chunk.metadata.heading ? ` · ${chunk.metadata.heading}` : ''}
+                  <span className="flex items-center gap-3">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-brand-50 text-xs font-semibold text-brand-700">
+                      {chunk.chunkIndex + 1}
+                    </span>
+                    <span>
+                      Chunk {chunk.chunkIndex + 1}
+                      {chunk.metadata.heading ? ` · ${chunk.metadata.heading}` : ''}
+                    </span>
                   </span>
                   <span className="text-xs font-normal text-slate-500">
                     {chunk.metadata.pageNumber ? `Page ${chunk.metadata.pageNumber} · ` : ''}
@@ -131,7 +152,15 @@ export function DocumentDetails({ documentId }: { documentId: string }) {
                   </span>
                 </summary>
                 <div className="border-t border-slate-100 px-5 py-4">
-                  <pre className="overflow-x-auto whitespace-pre-wrap font-sans text-sm leading-6 text-slate-700">
+                  <div
+                    className={`mb-3 flex items-center gap-2 text-xs font-medium ${chunk.hasEmbedding ? 'text-emerald-700' : 'text-amber-700'}`}
+                  >
+                    <span
+                      className={`size-1.5 rounded-full ${chunk.hasEmbedding ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    />
+                    {chunk.hasEmbedding ? 'Embedding stored' : 'Embedding pending'}
+                  </div>
+                  <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-4 font-sans text-sm leading-7 text-slate-700">
                     {chunk.content}
                   </pre>
                 </div>

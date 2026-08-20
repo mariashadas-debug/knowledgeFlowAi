@@ -75,7 +75,12 @@ describe('AssistantWorkspace', () => {
   it('renders the empty assistant state and disables an empty send', async () => {
     vi.mocked(api.listConversations).mockResolvedValue([]);
     renderWorkspace();
-    expect(await screen.findByText('Ask your company knowledge')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Ask a question about your company knowledge'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'What does the refund policy say?' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 
@@ -104,7 +109,8 @@ describe('AssistantWorkspace', () => {
     expect(await screen.findByText('When is my refund?')).toBeInTheDocument();
     expect(screen.getByText('Refunds take five business days. [S1]')).toBeInTheDocument();
     expect(screen.getByText(/refund-policy.md/)).toBeInTheDocument();
-    expect(screen.getByText('RAG details')).toBeInTheDocument();
+    expect(screen.getByText('Developer details')).toBeInTheDocument();
+    expect(screen.getByText('91% similarity')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Refund timing/ })).toBeInTheDocument();
   });
 
