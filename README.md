@@ -5,8 +5,8 @@ production-minded full-stack retrieval-augmented generation architecture.
 
 ## Current status
 
-Phases 1 through 3 establish the npm workspace, shared code-quality tooling, local PostgreSQL
-with pgvector, and the initial HTTP API. Database integration, document ingestion, and the RAG
+Phases 1 through 4 establish the npm workspace, shared code-quality tooling, local PostgreSQL
+with pgvector, the HTTP API, and the initial application schema. Document ingestion and the RAG
 pipeline are intentionally introduced in later phases.
 
 ## Workspace
@@ -38,7 +38,8 @@ Copy-Item .env.example .env
 npm run dev:api
 ```
 
-The API listens on `http://localhost:3001` by default. Its current health endpoint is:
+The API verifies PostgreSQL connectivity before listening on `http://localhost:3001` by default.
+Its health endpoint checks the database with a lightweight query:
 
 ```text
 GET http://localhost:3001/health
@@ -54,7 +55,17 @@ PowerShell:
 Copy-Item .env.example .env
 npm run db:up
 docker compose ps
+npm run db:migrate
+npm run db:migrate:status
 ```
+
+Migrations are stored in `apps/api/migrations`. The initial schema contains `documents`,
+`document_chunks`, `conversations`, `messages`, and `ai_request_logs`. To roll back only the most
+recent migration during local development, run `npm run db:migrate:down`.
+
+`document_chunks.embedding` uses the documented initial dimension `vector(1536)`. Vector ANN
+indexes are intentionally deferred until the corpus and retrieval behavior justify choosing and
+tuning HNSW or IVFFlat; exact search is preferable for the initial small dataset.
 
 The committed credentials are development-only defaults. Replace them in `.env` outside local
 development. Applications running on the host connect through `localhost` using `DATABASE_URL`.

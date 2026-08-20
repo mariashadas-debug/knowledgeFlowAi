@@ -2,18 +2,16 @@ import express from 'express';
 
 import { errorHandler } from './middleware/error-handler.js';
 import { requestLogger } from './middleware/request-logger.js';
-import { healthRouter } from './routes/health.js';
+import { createHealthRouter, type HealthDatabase } from './routes/health.js';
 
-export function createApp() {
+export function createApp(database: HealthDatabase) {
   const app = express();
 
   app.disable('x-powered-by');
   app.use(express.json());
   app.use(requestLogger);
-  app.use(healthRouter);
+  app.use(createHealthRouter(database));
   app.use(errorHandler);
 
   return app;
 }
-
-export const app = createApp();

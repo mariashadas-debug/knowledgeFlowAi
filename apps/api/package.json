@@ -4,25 +4,31 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.11"
   },
   "scripts": {
     "build": "tsc",
+    "db:migrate": "node-pg-migrate up --migrations-dir migrations --envPath ../../.env --no-verbose",
+    "db:migrate:down": "node-pg-migrate down --migrations-dir migrations --envPath ../../.env --no-verbose",
+    "db:migrate:status": "tsx scripts/migration-status.ts",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src --ext .ts --max-warnings=0",
     "start": "node dist/server.js",
-    "test": "tsx --test src/health.test.ts",
+    "test": "tsx --test src/health.test.ts src/database.integration.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "pg": "^8.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
+    "node-pg-migrate": "^9.0.0",
     "supertest": "^7.2.2",
     "tsx": "^4.23.12"
   }
